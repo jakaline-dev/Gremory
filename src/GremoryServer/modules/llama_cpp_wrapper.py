@@ -13,7 +13,11 @@ from transformers.generation.logits_process import (
     TopPLogitsWarper,
 )
 
-from gremory.modules.sampling import DRYLogitsProcessor, Sampler, TailFreeLogitsWarper
+from GremoryServer.modules.sampling import (
+    DRYLogitsProcessor,
+    Sampler,
+    TailFreeLogitsWarper,
+)
 
 
 class LlamaCPPWrapper(Llama):

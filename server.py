@@ -6,8 +6,8 @@ import litserve as ls
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from gremory.modules.llama_cpp_wrapper import LlamaCPPWrapper
-from gremory.modules.sampling import Sampler
+from GremoryServer.modules.llama_cpp_wrapper import LlamaCPPWrapper
+from GremoryServer.modules.sampling import Sampler
 
 load_dotenv()
 
