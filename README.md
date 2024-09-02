@@ -2,9 +2,9 @@
 
 An LLM inference server built with [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) and [LitServe](https://github.com/Lightning-AI/LitServe).
 
-Most of the ideas are from `text-generation-ui`[https://github.com/oobabooga/text-generation-webui]. This library aims to be a slimmed, optimized version of `text-generation-ui`.
+Most of the ideas are from [`text-generation-ui`](https://github.com/oobabooga/text-generation-webui). This library aims to be a slimmed, optimized version of `text-generation-ui`.
 
-Currently pre-alpha. Has a lot of stuff missing, and not OpenAI-spec compatible yet. Also working on a frontend (Gremory UI), which would be a seperate library.
+Currently pre-alpha. Has a lot of stuff missing, and not OpenAI-spec compatible yet. Currently working on the frontend (Gremory UI), which would be a seperate library.
 
 ## Installation & How to use
 
@@ -61,10 +61,10 @@ Currently, Gremory supports the samplers listed below:
 - [Min P](https://github.com/huggingface/transformers/issues/27670)
 - [DRY](https://github.com/oobabooga/text-generation-webui/pull/5677)
 
-You can also add your own sampling algorithms by adding a custom [LogitsProcessor](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/gremory/modules/sampling.py`.
+You can also add your own sampling algorithms by adding a custom [`LogitsProcessor`](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/GremoryServer/modules/sampling.py`.
 
 ## TODO
-- [ ] Front-end
+- [ ] UI
 - [ ] Make multiple endpoints (OpenAI compatible endpoint / Customizable endpoints)
 - [ ] Let users add their own samplers as .py files
 - [ ] Tests
