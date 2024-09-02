@@ -64,7 +64,7 @@ Currently, Gremory supports the samplers listed below:
 You can also add your own sampling algorithms by adding a custom [LogitsProcessor](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/gremory/modules/sampling.py`.
 
 ## TODO
-[ ] Front-end
-[ ] Make multiple endpoints (OpenAI compatible endpoint / Customizable endpoints)
-[ ] Let users add their own samplers as .py files
-[ ] Tests
+- [ ] Front-end
+- [ ] Make multiple endpoints (OpenAI compatible endpoint / Customizable endpoints)
+- [ ] Let users add their own samplers as .py files
+- [ ] Tests
