@@ -7,14 +7,14 @@ response = requests.post(
     json={
         "prompt": "Kenny: Where's the ketchup? Oh,",
         "samplers": [
-            {"type": "min_p", "value": 0.2},
+            {"type": "min_p", "value": 0.1},
             {
                 "type": "DRY",
                 "multiplier": 0.85,
                 "base": 1.75,
                 "sequence_breakers": ["\n"],
             },
-            {"type": "temperature", "value": 1.5},
+            {"type": "temperature", "value": 1.1},
         ],
         "do_sample": True,
         "max_tokens": 400,

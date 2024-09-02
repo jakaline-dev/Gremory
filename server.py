@@ -12,7 +12,7 @@ from gremory.modules.sampling import Sampler
 load_dotenv()
 
 
-class CustomRequest(BaseModel):
+class GremoryRequest(BaseModel):
     model: Optional[str] = ""
     prompt: str
     do_sample: Optional[bool] = True
@@ -23,7 +23,7 @@ class CustomRequest(BaseModel):
     stream: Optional[bool] = True
 
 
-class CustomLitAPI(ls.LitAPI):
+class GremoryLitAPI(ls.LitAPI):
     def setup(self, device):
         self.model = LlamaCPPWrapper(
             model_path=os.environ.get("MODEL_PATH"),
@@ -33,7 +33,7 @@ class CustomLitAPI(ls.LitAPI):
             verbose=False,
         )
 
-    def decode_request(self, request: CustomRequest):
+    def decode_request(self, request: GremoryRequest):
         if isinstance(request.samplers, list) and len(request.samplers) > 0:
             logits_processor = self.model._convert_logits_processor(request.samplers)
             do_sample = request.do_sample
@@ -66,6 +66,6 @@ if __name__ == "__main__":
             winloop.install()
         except ImportError:
             pass
-    api = CustomLitAPI()
+    api = GremoryLitAPI()
     server = ls.LitServer(api, stream=True)
     server.run(port=9052)
