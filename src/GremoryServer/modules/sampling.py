@@ -43,6 +43,12 @@ class DRYSampler(BaseSampler):
     type: Literal["DRY"] = "DRY"
 
 
+class XTCSampler(BaseSampler):
+    threshold: Optional[float] = 0.1
+    probability: Optional[float] = 0.0
+    type: Literal["XTC"] = "XTC"
+
+
 Sampler = (
     TemperatureSampler
     | TopPSampler
@@ -50,6 +56,7 @@ Sampler = (
     | MinPSampler
     | TFSSampler
     | DRYSampler
+    | XTCSampler
 )
 
 
@@ -60,7 +67,7 @@ class DRYLogitsProcessor(LogitsProcessor):
         multiplier: float,
         base: float,
         allowed_length: int,
-        sequence_breakers: set[int],
+        sequence_breakers: list[int],
         _range: int,
     ):
         self.multiplier = multiplier
@@ -184,5 +191,56 @@ class TailFreeLogitsWarper(LogitsWarper):
         indices_to_remove = sorted_indices_to_remove.scatter(
             1, sorted_indices, sorted_indices_to_remove
         )
+        scores = scores.masked_fill(indices_to_remove, self.filter_value)
+        return scores
+
+
+class XTCLogitsWarper(LogitsWarper):
+    def __init__(
+        self,
+        threshold: float,
+        probability: float,
+        special_token_ids: set[int],
+        filter_value: float = -float("Inf"),
+    ):
+        self.threshold = threshold
+        self.probability = probability
+        self.special_token_ids = special_token_ids
+        self.filter_value = filter_value
+
+    def __call__(
+        self, input_ids: torch.LongTensor, scores: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        # `random` returns values in the half-open range [0, 1), so setting `probability`
+        # to 0 means the sampler never takes action, while setting it to 1 means the sampler
+        # always takes action.
+        #
+        # Note that while XTC is most intuitively described as "if multiple tokens meet
+        # the threshold, then with probability...", reversing the two conditions is logically
+        # equivalent, and improves performance because processing can immediately be stopped
+        # if the random check fails.
+        if torch.rand(1).item() >= self.probability:
+            return scores
+
+        sorted_logits, sorted_indices = torch.sort(scores, descending=True)
+        probs = sorted_logits.softmax(dim=-1)
+
+        sorted_indices_to_remove = torch.full_like(probs, False, dtype=torch.bool)
+
+        # This operation sets exactly those indices to `True` for which the next index has
+        # probability above the threshold. Since `probs` is sorted, those are the indices
+        # of all tokens that meet the threshold, *except* the least probable one.
+        sorted_indices_to_remove[..., :-1] = probs[..., 1:] >= self.threshold
+
+        # Convert sorted_indices_to_remove to the original indices
+        indices_to_remove = sorted_indices_to_remove.scatter(
+            1, sorted_indices, sorted_indices_to_remove
+        )
+
+        # If newline or EOS tokens would be removed, return the original scores
+        if indices_to_remove[:, self.special_token_ids].any():
+            return scores
+
+        # Otherwise, remove tokens with the mask
         scores = scores.masked_fill(indices_to_remove, self.filter_value)
         return scores

@@ -11,7 +11,7 @@ Currently pre-alpha. Has a lot of stuff missing, and not OpenAI-spec compatible 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
 2. `uv sync` will install a virtual env with libraries
 3. Enter venv (`.venv\Scripts\activate` or `source .venv/bin/activate`)
-4. `ltt install --pytorch-computation-backend=cu121 torch` to install torch
+4. `ltt install --pytorch-computation-backend=cu121 torch` to install torch (Please use the newest torch version, 2.4.1)
 5. Create a .env file
 6. In the .env file, add the GGUF model file's absolute path as 'MODEL_PATH' (`MODEL_PATH=(model path)`)
 7. `uv run server.py` will run the server on `http://localhost:9052`.
@@ -60,6 +60,7 @@ Currently, Gremory supports the samplers listed below:
 - [TFS](https://www.trentonbricken.com/Tail-Free-Sampling/)
 - [Min P](https://github.com/huggingface/transformers/issues/27670)
 - [DRY](https://github.com/oobabooga/text-generation-webui/pull/5677)
+- [XTC](https://github.com/oobabooga/text-generation-webui/pull/6335)
 
 You can also add your own sampling algorithms by adding a custom [`LogitsProcessor`](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/GremoryServer/modules/sampling.py`.
 
@@ -67,4 +68,5 @@ You can also add your own sampling algorithms by adding a custom [`LogitsProcess
 - [ ] UI
 - [ ] Make multiple endpoints (OpenAI compatible endpoint / Customizable endpoints)
 - [ ] Let users add their own samplers as .py files
+- [ ] 4-bit kv cache
 - [ ] Tests

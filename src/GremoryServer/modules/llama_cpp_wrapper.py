@@ -17,6 +17,7 @@ from GremoryServer.modules.sampling import (
     DRYLogitsProcessor,
     Sampler,
     TailFreeLogitsWarper,
+    XTCLogitsWarper,
 )
 
 
@@ -37,25 +38,42 @@ class LlamaCPPWrapper(Llama):
                     logits_processor_list.append(TailFreeLogitsWarper(sampler.value))
                 case "DRY":
                     # Most tokenizers have different tokens when not start of a sentence ("a" and " a")
-                    # sampler.sequence_breakers += [
-                    #     " " + s for s in sampler.sequence_breakers
-                    # ]
-                    # If the sequence breaker tokens are split to multiple tokens, only use their last token
-                    sequence_breakers = [
-                        self.tokenize(s.encode("utf-8"), add_bos=False, special=True)[
-                            -1
-                        ]
-                        for s in sampler.sequence_breakers
+                    sampler.sequence_breakers += [
+                        " " + s for s in sampler.sequence_breakers
                     ]
+                    # If the sequence breaker tokens are split to multiple tokens, only use their last token
+                    sequence_breakers = set()
+                    for s in sampler.sequence_breakers:
+                        sequence_breakers.add(
+                            self.tokenize(
+                                s.encode("utf-8"), add_bos=False, special=False
+                            )[-1]
+                        )
                     # Should it throw error when split to multiple tokens?
                     # assert all([len(s) == 1 for s in sequence_breakers])
                     logits_processor_list.append(
                         DRYLogitsProcessor(
-                            sampler.multiplier,
-                            sampler.base,
-                            sampler.allowed_length,
-                            sequence_breakers,
-                            sampler.penalty_range,
+                            multiplier=sampler.multiplier,
+                            base=sampler.base,
+                            allowed_length=sampler.allowed_length,
+                            sequence_breakers=sequence_breakers,
+                            _range=sampler.penalty_range,
+                        )
+                    )
+                case "XTC":
+                    special_token_ids = set()
+                    special_token_ids.add(
+                        self.tokenize(
+                            "\n".encode("utf-8"), add_bos=False, special=False
+                        )[0]
+                    )
+                    if self.token_eos():
+                        special_token_ids.add(self.token_eos())
+                    logits_processor_list.append(
+                        XTCLogitsWarper(
+                            threshold=sampler.threshold,
+                            probability=sampler.probability,
+                            special_token_ids=list(special_token_ids),
                         )
                     )
                 case _:

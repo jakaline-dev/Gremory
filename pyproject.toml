@@ -7,9 +7,8 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "litserve>=0.2.2",
     "llama-cpp-python>=0.2.90; platform_system != 'Windows'",
-    "llama-cpp-python==0.2.89; platform_system == 'Windows'",
+    "llama-cpp-python==0.2.90; platform_system == 'Windows'",
     "transformers>=4.44.2",
-    "numpy<2",
     "uvloop>=0.20.0; platform_system != 'Windows'",
     "winloop>=0.1.6; platform_system == 'Windows'",
     "python-dotenv>=1.0.1",
