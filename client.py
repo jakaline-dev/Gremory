@@ -11,6 +11,7 @@ response = requests.post(
                 "type": "DRY",
                 "multiplier": 0.85,
                 "base": 1.75,
+                "allowed_length": 2,
                 "sequence_breakers": ["\n"],
             },
             {"type": "XTC", "threshold": 0.1, "probability": 0.5},

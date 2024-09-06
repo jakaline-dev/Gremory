@@ -1,4 +1,4 @@
-# Gremory Server
+# Gremory
 
 An LLM inference server built with [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) and [LitServe](https://github.com/Lightning-AI/LitServe).
 
@@ -21,7 +21,7 @@ Currently pre-alpha. Has a lot of stuff missing, and not OpenAI-spec compatible 
 
 Most of the LLM inference engines have limited options on token sampling. While current LLMs work pretty well with deterministic settings (no sampling), sampling does make a big difference when applied to creative tasks such as writing, roleplay, etc.
 
-Gremory Server allows users to customize the flow of the sampling process, by inputting the sampling parameters as a list.
+Gremory allows users to customize the flow of the sampling process, by inputting the sampling parameters as a list.
 
 ### Example
 
@@ -65,8 +65,7 @@ Currently, Gremory supports the samplers listed below:
 You can also add your own sampling algorithms by adding a custom [`LogitsProcessor`](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/GremoryServer/modules/sampling.py`.
 
 ## TODO
+- [ ] Chat Template Support
+- [ ] Quantized kv cache
 - [ ] UI
-- [ ] Make multiple endpoints (OpenAI compatible endpoint / Customizable endpoints)
-- [ ] Let users add their own samplers as .py files
-- [ ] 4-bit kv cache
 - [ ] Tests

@@ -13,7 +13,7 @@ from transformers.generation.logits_process import (
     TopPLogitsWarper,
 )
 
-from GremoryServer.modules.sampling import (
+from gremory.modules.sampling import (
     DRYLogitsProcessor,
     Sampler,
     TailFreeLogitsWarper,

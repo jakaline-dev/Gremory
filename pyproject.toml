@@ -1,5 +1,5 @@
 [project]
-name = "GremoryServer"
+name = "gremory"
 version = "0.1.0"
 description = "Lightweight LLM Inference Server"
 readme = "README.md"
