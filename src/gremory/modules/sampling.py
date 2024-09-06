@@ -1,10 +1,8 @@
 from typing import TYPE_CHECKING, Literal, Optional
 
+import torch
 from pydantic import BaseModel
 from transformers.generation.logits_process import LogitsProcessor, LogitsWarper
-
-if TYPE_CHECKING:
-    import torch
 
 
 class BaseSampler(BaseModel):
