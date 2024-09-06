@@ -12,7 +12,7 @@ Currently pre-alpha. Has a lot of stuff missing, and not OpenAI-spec compatible 
 2. `uv sync` will install a virtual env with libraries
 3. Enter venv (`.venv\Scripts\activate` or `source .venv/bin/activate`)
 4. `ltt install --pytorch-computation-backend=cu121 torch` to install torch (Please use the newest torch version, 2.4.1)
-5. Create a .env file
+5. Create an .env file
 6. In the .env file, add the GGUF model file's absolute path as 'MODEL_PATH' (`MODEL_PATH=(model path)`)
 7. `uv run server.py` will run the server on `http://localhost:9052`.
 8. To test, try out `uv run client.py`. Customize client.py as needed.
