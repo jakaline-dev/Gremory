@@ -13,6 +13,9 @@ dependencies = [
     "winloop>=0.1.6; platform_system == 'Windows'",
     "python-dotenv>=1.0.1",
     "light-the-torch>=0.7.5",
+    "flask-cloudflared>=0.0.14",
+    "pydantic-settings>=2.5.2",
+    "openai>=1.47.0",
 ]
 
 [tool.uv]

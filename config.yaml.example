@@ -1,0 +1,14 @@
+# your gguf file path
+model_path:
+
+# model context length
+n_ctx: 4096
+
+# number of gpu layers
+n_gpu_layers: -1
+
+# use cloudflare tunnel to expose public server link
+cloudflared: True
+
+# verbose llama_cpp output
+verbose: False

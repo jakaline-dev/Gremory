@@ -1,10 +1,20 @@
-from typing import Optional
+from typing import Dict, Iterator, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from llama_cpp._internals import _LlamaSamplingContext, _LlamaSamplingParams
 from llama_cpp.llama import Llama
 from llama_cpp.llama_grammar import LlamaGrammar
+from llama_cpp.llama_types import (
+    ChatCompletionFunction,
+    ChatCompletionRequestFunctionCall,
+    ChatCompletionRequestMessage,
+    ChatCompletionRequestResponseFormat,
+    ChatCompletionTool,
+    ChatCompletionToolChoiceOption,
+    CreateChatCompletionResponse,
+    CreateChatCompletionStreamResponse,
+)
 from transformers.generation.logits_process import (
     LogitsProcessorList,
     MinPLogitsWarper,
@@ -13,6 +23,7 @@ from transformers.generation.logits_process import (
     TopPLogitsWarper,
 )
 
+from gremory.modules.chat_formatter import GremoryJinja2ChatFormatter
 from gremory.modules.sampling import (
     DRYLogitsProcessor,
     Sampler,
@@ -22,6 +33,103 @@ from gremory.modules.sampling import (
 
 
 class LlamaCPPWrapper(Llama):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        template_choices = dict(
+            (name[10:], template)
+            for name, template in self.metadata.items()
+            if name.startswith("tokenizer.chat_template.")
+        )
+
+        if "tokenizer.chat_template" in self.metadata:
+            template_choices["chat_template.default"] = self.metadata[
+                "tokenizer.chat_template"
+            ]
+        chat_template = template_choices[self.chat_format]
+        eos_token_id = self.token_eos()
+        bos_token_id = self.token_bos()
+
+        eos_token = (
+            self._model.token_get_text(eos_token_id) if eos_token_id != -1 else ""
+        )
+        bos_token = (
+            self._model.token_get_text(bos_token_id) if bos_token_id != -1 else ""
+        )
+        # Monkey-patch chat handler
+        self.chat_handler = GremoryJinja2ChatFormatter(
+            template=chat_template,
+            eos_token=eos_token,
+            bos_token=bos_token,
+            stop_token_ids=[eos_token],
+        ).to_chat_handler()
+
+    def create_chat_completion(
+        self,
+        messages: List[ChatCompletionRequestMessage],
+        functions: Optional[List[ChatCompletionFunction]] = None,
+        function_call: Optional[ChatCompletionRequestFunctionCall] = None,
+        tools: Optional[List[ChatCompletionTool]] = None,
+        tool_choice: Optional[ChatCompletionToolChoiceOption] = None,
+        temperature: float = 0.2,
+        top_p: float = 0.95,
+        top_k: int = 40,
+        min_p: float = 0.05,
+        typical_p: float = 1.0,
+        stream: bool = False,
+        stop: Optional[Union[str, List[str]]] = [],
+        seed: Optional[int] = None,
+        response_format: Optional[ChatCompletionRequestResponseFormat] = None,
+        max_tokens: Optional[int] = None,
+        presence_penalty: float = 0.0,
+        frequency_penalty: float = 0.0,
+        repeat_penalty: float = 1.0,
+        tfs_z: float = 1.0,
+        mirostat_mode: int = 0,
+        mirostat_tau: float = 5.0,
+        mirostat_eta: float = 0.1,
+        model: Optional[str] = None,
+        logits_processor: Optional[LogitsProcessorList] = None,
+        grammar: Optional[LlamaGrammar] = None,
+        logit_bias: Optional[Dict[str, float]] = None,
+        logprobs: Optional[bool] = None,
+        top_logprobs: Optional[int] = None,
+        add_generation_prompt: bool = True,
+    ) -> Union[
+        CreateChatCompletionResponse, Iterator[CreateChatCompletionStreamResponse]
+    ]:
+        return self.chat_handler(
+            llama=self,
+            messages=messages,
+            functions=functions,
+            function_call=function_call,
+            tools=tools,
+            tool_choice=tool_choice,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            min_p=min_p,
+            typical_p=typical_p,
+            logprobs=logprobs,
+            top_logprobs=top_logprobs,
+            stream=stream,
+            stop=stop,
+            seed=seed,
+            response_format=response_format,
+            max_tokens=max_tokens,
+            presence_penalty=presence_penalty,
+            frequency_penalty=frequency_penalty,
+            repeat_penalty=repeat_penalty,
+            tfs_z=tfs_z,
+            mirostat_mode=mirostat_mode,
+            mirostat_tau=mirostat_tau,
+            mirostat_eta=mirostat_eta,
+            model=model,
+            logits_processor=logits_processor,
+            grammar=grammar,
+            logit_bias=logit_bias,
+            add_generation_prompt=add_generation_prompt,
+        )
+
     def _convert_logits_processor(self, samplers: list[Sampler]):
         logits_processor_list = []
         for sampler in samplers:
@@ -85,7 +193,6 @@ class LlamaCPPWrapper(Llama):
         temp: float = 1.0,
         idx: Optional[int] = None,
         grammar: Optional[LlamaGrammar] = None,
-        # useless
         top_k: int = 40,
         top_p: float = 0.95,
         min_p: float = 0.05,
