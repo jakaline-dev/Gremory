@@ -28,6 +28,7 @@ from gremory.modules.chat_formatter import GremoryJinja2ChatFormatter
 from gremory.modules.samplers import (
     DRYLogitsProcessor,
     TailFreeLogitsWarper,
+    UnifiedLogitsWarper,
     XTCLogitsWarper,
 )
 from gremory.types import LogitBiasWarper, Sampler
@@ -195,6 +196,14 @@ class LlamaCPPWrapper(Llama):
                             threshold=logit_processor.threshold,
                             probability=logit_processor.probability,
                             special_token_ids=list(special_token_ids),
+                        )
+                    )
+                case "unified":
+                    logits_processor_list.append(
+                        UnifiedLogitsWarper(
+                            linear=logit_processor.linear,
+                            conf=logit_processor.conf,
+                            quad=logit_processor.quad,
                         )
                     )
                 case "logit_bias":

@@ -21,16 +21,17 @@ REQUEST_BODY = {
     ],
     # "prompt": "What is your favourite condiment? I"
     "samplers": [
-        {
-            "type": "DRY",
-            "multiplier": 0.85,
-            "base": 1.75,
-            "allowed_length": 2,
-            "sequence_breakers": ["\n"],
-        },
+        # {
+        #     "type": "DRY",
+        #     "multiplier": 0.85,
+        #     "base": 1.75,
+        #     "allowed_length": 2,
+        #     "sequence_breakers": ["\n"],
+        # },
         {"type": "XTC", "threshold": 0.1, "probability": 0.5},
-        {"type": "min_p", "value": 0.1},
-        {"type": "temperature", "value": 1.25},
+        # {"type": "min_p", "value": 0.1},
+        # {"type": "temperature", "value": 1.25},
+        # {"type": "unified", "linear": 0.3, "conf": 0.0, "quad": 0.19}
     ],
     "max_tokens": 200,
     "stream": STREAM,

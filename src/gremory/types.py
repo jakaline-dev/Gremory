@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional, Type, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -54,6 +54,13 @@ class XTCSampler(BaseSampler):
     type: Literal["XTC"] = "XTC"
 
 
+class UnifiedSampler(BaseSampler):
+    linear: Optional[float] = 0.3
+    conf: Optional[float] = 0.0
+    quad: Optional[float] = 0.19
+    type: Literal["unified"] = "unified"
+
+
 class LogitBiasWarper:
     value: list[dict[str, int]]
     type: Literal["logit_bias"] = "logit_bias"
@@ -67,6 +74,7 @@ Sampler = Union[
     | TFSSampler
     | DRYSampler
     | XTCSampler
+    | UnifiedSampler
 ]
 
 

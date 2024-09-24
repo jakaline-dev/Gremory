@@ -67,6 +67,7 @@ Currently, Gremory supports the samplers listed below:
 - [Min P](https://github.com/huggingface/transformers/issues/27670)
 - [DRY](https://github.com/oobabooga/text-generation-webui/pull/5677)
 - [XTC](https://github.com/oobabooga/text-generation-webui/pull/6335)
+- [Unified Sampler](https://docs.novelai.net/text/Editor/slidersettings.html#Unified)
 
 You can also implement your own sampling algorithms by adding a custom [`LogitsProcessor`](https://huggingface.co/docs/transformers/internal/generation_utils#logitsprocessor) in `src/GremoryServer/modules/sampling.py`.
 
