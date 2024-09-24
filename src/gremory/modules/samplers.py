@@ -1,63 +1,5 @@
-from typing import TYPE_CHECKING, Literal, Optional
-
 import torch
-from pydantic import BaseModel
 from transformers.generation.logits_process import LogitsProcessor, LogitsWarper
-
-
-class BaseSampler(BaseModel):
-    pass
-
-
-class TemperatureSampler(BaseSampler):
-    value: float
-    type: Literal["temperature"] = "temperature"
-
-
-class TopPSampler(BaseSampler):
-    value: float
-    type: Literal["top_p"] = "top_p"
-
-
-class TopKSampler(BaseSampler):
-    value: float
-    type: Literal["top_k"] = "top_k"
-
-
-class MinPSampler(BaseSampler):
-    value: float
-    type: Literal["min_p"] = "min_p"
-
-
-class TFSSampler(BaseSampler):
-    value: float
-    type: Literal["tfs"] = "tfs"
-
-
-class DRYSampler(BaseSampler):
-    multiplier: Optional[float] = 0.0
-    base: Optional[float] = 1.75
-    allowed_length: Optional[int] = 2
-    sequence_breakers: Optional[list[str]] = []
-    penalty_range: Optional[int] = 0
-    type: Literal["DRY"] = "DRY"
-
-
-class XTCSampler(BaseSampler):
-    threshold: Optional[float] = 0.1
-    probability: Optional[float] = 0.0
-    type: Literal["XTC"] = "XTC"
-
-
-Sampler = (
-    TemperatureSampler
-    | TopPSampler
-    | TopKSampler
-    | MinPSampler
-    | TFSSampler
-    | DRYSampler
-    | XTCSampler
-)
 
 
 # Code: https://github.com/oobabooga/text-generation-webui/blob/main/modules/sampler_hijack.py
@@ -146,6 +88,7 @@ class DRYLogitsProcessor(LogitsProcessor):
         return scores
 
 
+# Code: https://github.com/oobabooga/text-generation-webui/blob/main/modules/sampler_hijack.py
 class TailFreeLogitsWarper(LogitsWarper):
     def __init__(
         self,
@@ -195,6 +138,7 @@ class TailFreeLogitsWarper(LogitsWarper):
         return scores
 
 
+# Code: https://github.com/oobabooga/text-generation-webui/pull/6335/files
 class XTCLogitsWarper(LogitsWarper):
     def __init__(
         self,

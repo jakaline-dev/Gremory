@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Type, Union
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -9,14 +9,72 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
-from gremory.modules.sampling import Sampler
+
+class BaseSampler(BaseModel):
+    pass
+
+
+class TemperatureSampler(BaseSampler):
+    value: float
+    type: Literal["temperature"] = "temperature"
+
+
+class TopPSampler(BaseSampler):
+    value: float
+    type: Literal["top_p"] = "top_p"
+
+
+class TopKSampler(BaseSampler):
+    value: float
+    type: Literal["top_k"] = "top_k"
+
+
+class MinPSampler(BaseSampler):
+    value: float
+    type: Literal["min_p"] = "min_p"
+
+
+class TFSSampler(BaseSampler):
+    value: float
+    type: Literal["tfs"] = "tfs"
+
+
+class DRYSampler(BaseSampler):
+    multiplier: Optional[float] = 0.0
+    base: Optional[float] = 1.75
+    allowed_length: Optional[int] = 2
+    sequence_breakers: Optional[list[str]] = []
+    penalty_range: Optional[int] = 0
+    type: Literal["DRY"] = "DRY"
+
+
+class XTCSampler(BaseSampler):
+    threshold: Optional[float] = 0.1
+    probability: Optional[float] = 0.0
+    type: Literal["XTC"] = "XTC"
+
+
+class LogitBiasWarper:
+    value: list[dict[str, int]]
+    type: Literal["logit_bias"] = "logit_bias"
+
+
+Sampler = Union[
+    TemperatureSampler
+    | TopPSampler
+    | TopKSampler
+    | MinPSampler
+    | TFSSampler
+    | DRYSampler
+    | XTCSampler
+]
 
 
 class GremoryRequest(BaseModel):
     # OpenAI Specs
     messages: Optional[List[ChatCompletionMessageParam]] = None
     model: str = ""  #
-    frequency_penalty: Optional[float] = 0.0
+    frequency_penalty: Optional[float] = None
     function_call: Optional[completion_create_params.FunctionCall] = None
     functions: Optional[List[completion_create_params.Function]] = None
     logit_bias: Optional[Dict[str, int]] = None
@@ -25,7 +83,7 @@ class GremoryRequest(BaseModel):
     max_tokens: Optional[int] = None
     n: Optional[int] = None
     parallel_tool_calls: Optional[bool] = None
-    presence_penalty: Optional[float] = 0.0
+    presence_penalty: Optional[float] = None
     response_format: Optional[completion_create_params.ResponseFormat] = None
     seed: Optional[int] = None
     service_tier: Optional[Literal["auto", "default"]] = None
@@ -36,13 +94,9 @@ class GremoryRequest(BaseModel):
     tool_choice: Optional[ChatCompletionToolChoiceOptionParam] = None
     tools: Optional[List[ChatCompletionToolParam]] = None
     top_logprobs: Optional[int] = None
-    top_p: Optional[float] = 1.0
+    top_p: Optional[float] = None
     user: Optional[str] = None
     # Gremory
     prompt: Optional[str] = None
-    do_sample: bool = True
     samplers: Optional[List[Sampler]] = None
-    chat_template: Optional[Union[str, List[str]]] = None
     add_generation_prompt: bool = True
-    # class Config:
-    #    arbitrary_types_allowed = True

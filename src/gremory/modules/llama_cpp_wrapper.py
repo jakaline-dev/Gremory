@@ -1,9 +1,10 @@
+import inspect
 from typing import Dict, Iterator, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from llama_cpp._internals import _LlamaSamplingContext, _LlamaSamplingParams
-from llama_cpp.llama import Llama
+import torch
+from llama_cpp.llama import Llama, LogitsProcessorList
 from llama_cpp.llama_grammar import LlamaGrammar
 from llama_cpp.llama_types import (
     ChatCompletionFunction,
@@ -16,20 +17,20 @@ from llama_cpp.llama_types import (
     CreateChatCompletionStreamResponse,
 )
 from transformers.generation.logits_process import (
-    LogitsProcessorList,
     MinPLogitsWarper,
+    SequenceBiasLogitsProcessor,
     TemperatureLogitsWarper,
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
 
 from gremory.modules.chat_formatter import GremoryJinja2ChatFormatter
-from gremory.modules.sampling import (
+from gremory.modules.samplers import (
     DRYLogitsProcessor,
-    Sampler,
     TailFreeLogitsWarper,
     XTCLogitsWarper,
 )
+from gremory.types import LogitBiasWarper, Sampler
 
 
 class LlamaCPPWrapper(Llama):
@@ -130,28 +131,40 @@ class LlamaCPPWrapper(Llama):
             add_generation_prompt=add_generation_prompt,
         )
 
-    def _convert_logits_processor(self, samplers: list[Sampler]):
+    def _convert_logits_processor(
+        self, logit_processors: list[Union[Sampler, LogitBiasWarper]]
+    ):
         logits_processor_list = []
-        for sampler in samplers:
-            match sampler.type:
+        for logit_processor in logit_processors:
+            match logit_processor.type:
                 case "temperature":
-                    logits_processor_list.append(TemperatureLogitsWarper(sampler.value))
+                    logits_processor_list.append(
+                        TemperatureLogitsWarper(logit_processor.value)
+                    )
                 case "top_p":
-                    logits_processor_list.append(TopPLogitsWarper(sampler.value))
+                    logits_processor_list.append(
+                        TopPLogitsWarper(logit_processor.value)
+                    )
                 case "top_k":
-                    logits_processor_list.append(TopKLogitsWarper(sampler.value))
+                    logits_processor_list.append(
+                        TopKLogitsWarper(logit_processor.value)
+                    )
                 case "min_p":
-                    logits_processor_list.append(MinPLogitsWarper(sampler.value))
+                    logits_processor_list.append(
+                        MinPLogitsWarper(logit_processor.value)
+                    )
                 case "tfs":
-                    logits_processor_list.append(TailFreeLogitsWarper(sampler.value))
+                    logits_processor_list.append(
+                        TailFreeLogitsWarper(logit_processor.value)
+                    )
                 case "DRY":
                     # Most tokenizers have different tokens when not start of a sentence ("a" and " a")
-                    sampler.sequence_breakers += [
-                        " " + s for s in sampler.sequence_breakers
+                    logit_processor.sequence_breakers += [
+                        " " + s for s in logit_processor.sequence_breakers
                     ]
                     # If the sequence breaker tokens are split to multiple tokens, only use their last token
                     sequence_breakers = set()
-                    for s in sampler.sequence_breakers:
+                    for s in logit_processor.sequence_breakers:
                         sequence_breakers.add(
                             self.tokenize(
                                 s.encode("utf-8"), add_bos=False, special=False
@@ -161,11 +174,11 @@ class LlamaCPPWrapper(Llama):
                     # assert all([len(s) == 1 for s in sequence_breakers])
                     logits_processor_list.append(
                         DRYLogitsProcessor(
-                            multiplier=sampler.multiplier,
-                            base=sampler.base,
-                            allowed_length=sampler.allowed_length,
+                            multiplier=logit_processor.multiplier,
+                            base=logit_processor.base,
+                            allowed_length=logit_processor.allowed_length,
                             sequence_breakers=sequence_breakers,
-                            _range=sampler.penalty_range,
+                            _range=logit_processor.penalty_range,
                         )
                     )
                 case "XTC":
@@ -173,38 +186,43 @@ class LlamaCPPWrapper(Llama):
                     special_token_ids.add(
                         self.tokenize(
                             "\n".encode("utf-8"), add_bos=False, special=False
-                        )[0]
+                        )[-1]
                     )
                     if self.token_eos():
                         special_token_ids.add(self.token_eos())
                     logits_processor_list.append(
                         XTCLogitsWarper(
-                            threshold=sampler.threshold,
-                            probability=sampler.probability,
+                            threshold=logit_processor.threshold,
+                            probability=logit_processor.probability,
                             special_token_ids=list(special_token_ids),
                         )
                     )
+                case "logit_bias":
+                    logits_processor_list.append(
+                        SequenceBiasLogitsProcessor(sequence_bias=logit_processor.value)
+                    )
                 case _:
                     raise ValueError("Undefined sampler name detected!")
+        return LogitsProcessorList(logits_processor_list)
 
     def sample(
         self,
         logits_processor: Optional[LogitsProcessorList] = None,
-        temp: float = 1.0,
+        temp: float = None,
         idx: Optional[int] = None,
         grammar: Optional[LlamaGrammar] = None,
-        top_k: int = 40,
-        top_p: float = 0.95,
-        min_p: float = 0.05,
-        typical_p: float = 1.0,
-        repeat_penalty: float = 1.0,
-        frequency_penalty: float = 0.0,
-        presence_penalty: float = 0.0,
-        tfs_z: float = 1.0,
-        mirostat_mode: int = 0,
-        mirostat_eta: float = 0.1,
-        mirostat_tau: float = 5.0,
-        penalize_nl: bool = True,
+        top_k: int = None,
+        top_p: float = None,
+        min_p: float = None,
+        typical_p: float = None,
+        repeat_penalty: float = None,
+        frequency_penalty: float = None,
+        presence_penalty: float = None,
+        tfs_z: float = None,
+        mirostat_mode: int = None,
+        mirostat_eta: float = None,
+        mirostat_tau: float = None,
+        penalize_nl: bool = False,
     ):
         assert self._ctx is not None
         assert self.n_tokens > 0
@@ -214,46 +232,50 @@ class LlamaCPPWrapper(Llama):
         else:
             logits = self._scores[idx, :]
 
-        # If logits_processor is not None, we reroute the default sampling code
         if logits_processor is not None:
             logits[:] = (
-                logits_processor(self._input_ids, logits)
+                logits_processor(
+                    torch.from_numpy(self._input_ids).unsqueeze(dim=0),
+                    torch.from_numpy(logits).unsqueeze(dim=0),
+                )
                 if idx is None
-                else logits_processor(self._input_ids[: idx + 1], logits)
+                else logits_processor(
+                    torch.from_numpy(self._input_ids[: idx + 1]).unsqueeze(dim=0),
+                    torch.from_numpy(logits).unsqueeze(dim=0),
+                )
             )
-            # softmax
-            if temp == 1.0:
-                probs = np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
-                output = np.random.choice(probs.shape[-1], size=1, p=probs.ravel())
-            else:
-                output = np.argmax(probs, axis=-1)[np.newaxis, :]
-            return output[0]
-        else:
-            sampling_params = _LlamaSamplingParams(
-                top_k=top_k,
-                top_p=top_p,
-                min_p=min_p,
-                tfs_z=tfs_z,
-                typical_p=typical_p,
-                temp=temp,
-                penalty_last_n=self.last_n_tokens_size,
-                penalty_repeat=repeat_penalty,
-                penalty_freq=frequency_penalty,
-                penalty_present=presence_penalty,
-                mirostat=mirostat_mode,
-                mirostat_tau=mirostat_tau,
-                mirostat_eta=mirostat_eta,
-                penalize_nl=penalize_nl,
-            )
-            sampling_context = _LlamaSamplingContext(
-                params=sampling_params,
-                grammar=grammar,
-            )
-            sampling_context.prev = list(self.eval_tokens)
-            id = sampling_context.sample(ctx_main=self._ctx, logits_array=logits)
-            sampling_context.accept(
-                ctx_main=self._ctx,
-                id=id,
-                apply_grammar=grammar is not None,
-            )
-            return id
+        # TODO: Check with transformers dimensions
+        probs = np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
+        # softmax
+        output = np.random.choice(probs.shape[-1], size=1, p=probs.ravel())
+        return output[0]
+
+
+# sampling_params = _LlamaSamplingParams(
+#     top_k=top_k,
+#     top_p=top_p,
+#     min_p=min_p,
+#     tfs_z=tfs_z,
+#     typical_p=typical_p,
+#     temp=temp,
+#     penalty_last_n=self.last_n_tokens_size,
+#     penalty_repeat=repeat_penalty,
+#     penalty_freq=frequency_penalty,
+#     penalty_present=presence_penalty,
+#     mirostat=mirostat_mode,
+#     mirostat_tau=mirostat_tau,
+#     mirostat_eta=mirostat_eta,
+#     penalize_nl=penalize_nl,
+# )
+# sampling_context = _LlamaSamplingContext(
+#     params=sampling_params,
+#     grammar=grammar,
+# )
+# sampling_context.prev = list(self.eval_tokens)
+# id = sampling_context.sample(ctx_main=self._ctx, logits_array=logits)
+# sampling_context.accept(
+#     ctx_main=self._ctx,
+#     id=id,
+#     apply_grammar=grammar is not None,
+# )
+# return id

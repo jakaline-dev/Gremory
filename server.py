@@ -12,7 +12,12 @@ from pydantic_settings import (
 )
 
 from gremory.modules.llama_cpp_wrapper import LlamaCPPWrapper
-from gremory.types import GremoryRequest
+from gremory.types import (
+    GremoryRequest,
+    LogitBiasWarper,
+    TemperatureSampler,
+    TopPSampler,
+)
 
 
 class Settings(BaseSettings):
@@ -58,7 +63,7 @@ class GremoryLitAPI(ls.LitAPI):
                 "temperature": request.temperature,
                 "top_p": request.top_p,
                 "top_k": 0,  # Disable default
-                "min_p": 1.0,  # Disable default
+                "min_p": 0.0,  # Disable default
                 "stream": request.stream,
                 "stop": request.stop,
                 "seed": request.seed,
@@ -67,7 +72,6 @@ class GremoryLitAPI(ls.LitAPI):
                 "presence_penalty": request.presence_penalty,
                 "frequency_penalty": request.frequency_penalty,
                 "model": request.model,
-                "logit_bias": request.logit_bias,
                 "top_logprobs": request.top_logprobs,
                 "add_generation_prompt": request.add_generation_prompt,
             }
@@ -77,7 +81,7 @@ class GremoryLitAPI(ls.LitAPI):
                 "max_tokens": request.max_tokens,
                 "temperature": request.temperature,
                 "top_p": request.top_p,
-                "min_p": 1.0,  # Disable default
+                "min_p": 0.0,  # Disable default
                 "stop": request.stop,
                 "frequency_penalty": request.frequency_penalty,
                 "presence_penalty": request.presence_penalty,
@@ -85,15 +89,29 @@ class GremoryLitAPI(ls.LitAPI):
                 "stream": request.stream,
                 "seed": request.seed,
                 "model": request.model,
-                "logit_bias": request.logit_bias,
             }
         else:
             raise HTTPException(400, "Set either prompt or messages")
+
+        logit_processor_list = []
+
         if request.samplers and len(request.samplers) > 0:
+            logit_processor_list += request.samplers
+        else:
+            if request.top_p is not None:
+                logit_processor_list.append(TopPSampler(value=request.top_p))
+            if request.temperature is not None:
+                logit_processor_list.append(
+                    TemperatureSampler(value=request.temperature)
+                )
+            # TODO: Handle presence_penalty, frequence_penalty
+        if request.logit_bias and len(request.logit_bias.items()) > 0:
+            logit_processor_list.append(LogitBiasWarper(value=request.logit_bias))
+
+        if len(logit_processor_list) > 0:
             input["logits_processor"] = self.model._convert_logits_processor(
-                request.samplers
+                logit_processor_list
             )
-            input["temperature"] = 1.0 if request.do_sample else 0.0
         return input
 
     def predict(self, input: dict):
