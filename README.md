@@ -80,9 +80,7 @@ When the last message is `assistant` role, Gremory will continue from the last m
 ## TODO
 - [x] Chat Template Support
 - [x] Prefill Response
-- [ ] API wiki
-- [ ] SillyTavern Support
-- [ ] RisuAI Support
-- [ ] Quantized KV-Cache
 - [ ] GremoryUI (Currently building with Svelte 5 & shadcn-svelte)
+- [ ] API wiki
+- [ ] Quantized KV-Cache
 - [ ] Tests
