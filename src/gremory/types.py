@@ -61,7 +61,7 @@ class UnifiedSampler(BaseSampler):
     type: Literal["unified"] = "unified"
 
 
-class LogitBiasWarper:
+class LogitBiasWarper(BaseModel):
     value: list[dict[str, int]]
     type: Literal["logit_bias"] = "logit_bias"
 
@@ -77,10 +77,11 @@ Sampler = Union[
     | UnifiedSampler
 ]
 
+LogitProcessorListInputType = List[Union[Sampler, LogitBiasWarper]]
 
-class GremoryRequest(BaseModel):
+
+class GremoryBaseRequest(BaseModel):
     # OpenAI Specs
-    messages: Optional[List[ChatCompletionMessageParam]] = None
     model: str = ""  #
     frequency_penalty: Optional[float] = None
     function_call: Optional[completion_create_params.FunctionCall] = None
@@ -104,7 +105,39 @@ class GremoryRequest(BaseModel):
     top_logprobs: Optional[int] = None
     top_p: Optional[float] = None
     user: Optional[str] = None
-    # Gremory
-    prompt: Optional[str] = None
+
+
+class GremoryChatCompletionsRequest(GremoryBaseRequest):
+    messages: List[ChatCompletionMessageParam]
     samplers: Optional[List[Sampler]] = None
     add_generation_prompt: bool = True
+
+
+class GremoryCompletionsRequest(GremoryBaseRequest):
+    prompt: str
+    samplers: Optional[List[Sampler]] = None
+
+
+class GremoryBaseInput(BaseModel):
+    max_tokens: Optional[int] = None
+    stop: Union[Optional[str], List[str]] = None
+    stream: Optional[bool] = False
+    seed: Optional[int] = None
+    model: str = ""  #
+
+
+class GremoryCompletionsInput(GremoryBaseInput):
+    prompt: str
+    logits_processor_list_input: Optional[LogitProcessorListInputType] = None
+
+
+class GremoryChatCompletionsInput(GremoryBaseInput):
+    messages: List[ChatCompletionMessageParam]
+    function_call: Optional[completion_create_params.FunctionCall] = None
+    functions: Optional[List[completion_create_params.Function]] = None
+    tool_choice: Optional[ChatCompletionToolChoiceOptionParam] = None
+    tools: Optional[List[ChatCompletionToolParam]] = None
+    response_format: Optional[completion_create_params.ResponseFormat] = None
+    top_logprobs: Optional[int] = None
+    add_generation_prompt: bool = True
+    logits_processor_list_input: Optional[LogitProcessorListInputType] = None

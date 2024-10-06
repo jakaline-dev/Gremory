@@ -203,6 +203,6 @@ class UnifiedLogitsWarper(LogitsWarper):
         log_p = torch.nn.functional.log_softmax(scores, dim=-1)
         p = torch.exp(log_p)
         entropy = -(log_p * p).nansum(-1, keepdim=True)
-
+        # Warning: This is using log probabilities as scores
         scores = log_p * (self.linear + entropy * self.conf) - log_p**2 * self.quad
         return scores

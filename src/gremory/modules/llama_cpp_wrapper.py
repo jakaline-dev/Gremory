@@ -4,9 +4,9 @@ from typing import Dict, Iterator, List, Optional, Union
 import numpy as np
 import numpy.typing as npt
 import torch
-from llama_cpp.llama import Llama, LogitsProcessorList
-from llama_cpp.llama_grammar import LlamaGrammar
-from llama_cpp.llama_types import (
+from llama_cpp_cuda.llama import Llama, LogitsProcessorList
+from llama_cpp_cuda.llama_grammar import LlamaGrammar
+from llama_cpp_cuda.llama_types import (
     ChatCompletionFunction,
     ChatCompletionRequestFunctionCall,
     ChatCompletionRequestMessage,
@@ -31,7 +31,7 @@ from gremory.modules.samplers import (
     UnifiedLogitsWarper,
     XTCLogitsWarper,
 )
-from gremory.types import LogitBiasWarper, Sampler
+from gremory.types import LogitProcessorListInputType
 
 
 class LlamaCPPWrapper(Llama):
@@ -132,9 +132,7 @@ class LlamaCPPWrapper(Llama):
             add_generation_prompt=add_generation_prompt,
         )
 
-    def _convert_logits_processor(
-        self, logit_processors: list[Union[Sampler, LogitBiasWarper]]
-    ):
+    def _convert_logits_processor(self, logit_processors: LogitProcessorListInputType):
         logits_processor_list = []
         for logit_processor in logit_processors:
             match logit_processor.type:
@@ -255,7 +253,6 @@ class LlamaCPPWrapper(Llama):
             )
         # TODO: Check with transformers dimensions
         probs = np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
-        # softmax
         output = np.random.choice(probs.shape[-1], size=1, p=probs.ravel())
         return output[0]
 

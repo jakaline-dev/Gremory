@@ -28,10 +28,10 @@ REQUEST_BODY = {
         #     "allowed_length": 2,
         #     "sequence_breakers": ["\n"],
         # },
-        {"type": "XTC", "threshold": 0.1, "probability": 0.5},
+        # {"type": "XTC", "threshold": 0.1, "probability": 0.5},
         # {"type": "min_p", "value": 0.1},
-        # {"type": "temperature", "value": 1.25},
-        # {"type": "unified", "linear": 0.3, "conf": 0.0, "quad": 0.19}
+        # {"type": "temperature", "value": 0.1},
+        {"type": "unified", "linear": 3, "conf": 0.0, "quad": 0.18}
     ],
     "max_tokens": 200,
     "stream": STREAM,

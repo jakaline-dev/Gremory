@@ -8,11 +8,11 @@ Currently working on the frontend (Gremory UI), which would be a seperate librar
 
 ## Installation
 
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-2. `uv sync` will install a virtual env with libraries
-3. Enter venv (`.venv\Scripts\activate` or `source .venv/bin/activate`)
-4. `ltt install --pytorch-computation-backend=cu121 torch` to install torch (Please use the newest torch version, 2.4.1)
-5. Rename config.yaml.example to config.yaml, add your local LLM's absolute path to model_path
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+2. If already installed, check if it is the latest version (>=0.4.18). Update `uv` with `uv self update`
+3. Open cmd/bash in the project folder, type `uv sync` to automatically install the virtual env
+4. Enter venv (`.venv\Scripts\activate` or `source .venv/bin/activate`)
+5. Rename config.yaml.example to config.yaml, add your local LLM's absolute path to `model_path`
 6. Open server with `uv run server.py`
 
 ## How to use
@@ -80,6 +80,7 @@ When the last message is `assistant` role, Gremory will continue from the last m
 ## TODO
 - [x] Chat Template Support
 - [x] Prefill Response
+- [ ] Update llama-cpp-python to 0.3.1
 - [ ] GremoryUI (Currently building with Svelte 5 & shadcn-svelte)
 - [ ] API wiki
 - [ ] Quantized KV-Cache

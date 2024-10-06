@@ -1,5 +1,5 @@
 import platform
-from typing import Tuple, Type
+from typing import Tuple, Type, Union
 
 import litserve as ls
 from fastapi.exceptions import HTTPException
@@ -13,7 +13,10 @@ from pydantic_settings import (
 
 from gremory.modules.llama_cpp_wrapper import LlamaCPPWrapper
 from gremory.types import (
-    GremoryRequest,
+    GremoryChatCompletionsInput,
+    GremoryChatCompletionsRequest,
+    GremoryCompletionsInput,
+    GremoryCompletionsRequest,
     LogitBiasWarper,
     TemperatureSampler,
     TopPSampler,
@@ -50,46 +53,40 @@ class GremoryLitAPI(ls.LitAPI):
     def setup(self, device):
         self.model = LlamaCPPWrapper(**settings.model_dump())
 
-    def decode_request(self, request: GremoryRequest, context):
-        if request.prompt and request.messages:
-            raise HTTPException(400, "Cannot set both prompt and messages")
-        elif request.messages:
-            input = {
-                "messages": request.messages,
-                "functions": request.functions,
-                "function_call": request.function_call,
-                "tools": request.tools,
-                "tool_choice": request.tool_choice,
-                "temperature": request.temperature,
-                "top_p": request.top_p,
-                "top_k": 0,  # Disable default
-                "min_p": 0.0,  # Disable default
-                "stream": request.stream,
-                "stop": request.stop,
-                "seed": request.seed,
-                "response_format": request.response_format,
-                "max_tokens": request.max_tokens,
-                "presence_penalty": request.presence_penalty,
-                "frequency_penalty": request.frequency_penalty,
-                "model": request.model,
-                "top_logprobs": request.top_logprobs,
-                "add_generation_prompt": request.add_generation_prompt,
-            }
-        elif request.prompt:
-            input = {
-                "prompt": request.prompt,
-                "max_tokens": request.max_tokens,
-                "temperature": request.temperature,
-                "top_p": request.top_p,
-                "min_p": 0.0,  # Disable default
-                "stop": request.stop,
-                "frequency_penalty": request.frequency_penalty,
-                "presence_penalty": request.presence_penalty,
-                "top_k": 0,  # Disable default
-                "stream": request.stream,
-                "seed": request.seed,
-                "model": request.model,
-            }
+    def reload(self):
+        del self.model
+        self.model = LlamaCPPWrapper(**settings.model_dump())
+
+    def decode_request(
+        self,
+        request: Union[GremoryCompletionsRequest, GremoryChatCompletionsRequest],
+        context,
+    ):
+        if isinstance(request, GremoryChatCompletionsRequest):
+            input = GremoryChatCompletionsInput(
+                messages=request.messages,
+                functions=request.functions,
+                function_call=request.function_call,
+                tools=request.tools,
+                tool_choice=request.tool_choice,
+                response_format=request.response_format,
+                top_logprobs=request.top_logprobs,
+                add_generation_prompt=request.add_generation_prompt,
+                max_tokens=request.max_tokens,
+                stop=request.stop,
+                stream=request.stream,
+                seed=request.seed,
+                model=request.model,
+            )
+        elif isinstance(request, GremoryCompletionsRequest):
+            input = GremoryCompletionsInput(
+                prompt=request.prompt,
+                max_tokens=request.max_tokens,
+                stop=request.stop,
+                stream=request.stream,
+                seed=request.seed,
+                model=request.model,
+            )
         else:
             raise HTTPException(400, "Set either prompt or messages")
 
@@ -109,24 +106,62 @@ class GremoryLitAPI(ls.LitAPI):
             logit_processor_list.append(LogitBiasWarper(value=request.logit_bias))
 
         if len(logit_processor_list) > 0:
-            input["logits_processor"] = self.model._convert_logits_processor(
-                logit_processor_list
-            )
+            input.logits_processor_list_input = logit_processor_list
         return input
 
-    def predict(self, input: dict):
-        if "messages" in input:
-            if input["stream"]:
-                for item in self.model.create_chat_completion(**input):
+    def predict(
+        self, input: Union[GremoryChatCompletionsInput, GremoryCompletionsInput]
+    ):
+        logits_processor = None
+        if isinstance(input, GremoryChatCompletionsInput) or isinstance(
+            input, GremoryCompletionsInput
+        ):
+            print(input.logits_processor_list_input)
+            logits_processor = self.model._convert_logits_processor(
+                input.logits_processor_list_input
+            )
+        if isinstance(input, GremoryChatCompletionsInput):
+            if input.stream:
+                for item in self.model.create_chat_completion(
+                    **input.model_dump(exclude="logits_processor_list_input"),
+                    logits_processor=logits_processor,
+                    temperature=0.0,
+                    top_p=0.0,
+                    top_k=0.0,
+                    # min_p=1.0,
+                ):
                     yield item
             else:
-                yield self.model.create_chat_completion(**input)
+                yield self.model.create_chat_completion(
+                    **input.model_dump(exclude="logits_processor_list_input"),
+                    logits_processor=logits_processor,
+                    temperature=0.0,
+                    top_p=0.0,
+                    top_k=0.0,
+                    # min_p=1.0,
+                )
+        elif isinstance(input, GremoryCompletionsInput):
+            if input.stream:
+                for item in self.model.create_completion(
+                    **input.model_dump(exclude="logits_processor_list_input"),
+                    logits_processor=logits_processor,
+                    temperature=0.0,
+                    top_p=0.0,
+                    top_k=0.0,
+                    # min_p=1.0,
+                ):
+                    yield item
+            else:
+                yield self.model.create_completion(
+                    **input.model_dump(exclude="logits_processor_list_input"),
+                    logits_processor=logits_processor,
+                    temperature=0.0,
+                    top_p=0.0,
+                    top_k=0.0,
+                    # min_p=1.0,
+                )
         else:
-            if input["stream"]:
-                for item in self.model.create_completion(**input):
-                    yield item
-            else:
-                yield self.model.create_completion(**input)
+            raise ValueError()
 
     def encode_response(self, output):
         for out in output:
@@ -143,6 +178,6 @@ if __name__ == "__main__":
             pass
     api = GremoryLitAPI()
     server = ls.LitServer(api, stream=True, api_path="/v1/chat/completions")
+    server.run(port=9052)
     if settings.cloudflared:
         start_cloudflared(port=9052, metrics_port=8152)
-    server.run(port=9052)
