@@ -116,7 +116,6 @@ class GremoryLitAPI(ls.LitAPI):
         if isinstance(input, GremoryChatCompletionsInput) or isinstance(
             input, GremoryCompletionsInput
         ):
-            print(input.logits_processor_list_input)
             logits_processor = self.model._convert_logits_processor(
                 input.logits_processor_list_input
             )
@@ -178,6 +177,6 @@ if __name__ == "__main__":
             pass
     api = GremoryLitAPI()
     server = ls.LitServer(api, stream=True, api_path="/v1/chat/completions")
-    server.run(port=9052)
     if settings.cloudflared:
         start_cloudflared(port=9052, metrics_port=8152)
+    server.run(port=9052)
