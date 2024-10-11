@@ -1,10 +1,13 @@
-import inspect
+import ctypes
 from typing import Dict, Iterator, List, Optional, Union
 
 import numpy as np
-import numpy.typing as npt
 import torch
-from llama_cpp_cuda.llama import Llama, LogitsProcessorList
+from llama_cpp_cuda import (
+    LogitsProcessorList,
+    llama_token_data,
+)
+from llama_cpp_cuda._internals import LlamaSampler
 from llama_cpp_cuda.llama_grammar import LlamaGrammar
 from llama_cpp_cuda.llama_types import (
     ChatCompletionFunction,
@@ -25,6 +28,7 @@ from transformers.generation.logits_process import (
 )
 
 from gremory.modules.chat_formatter import GremoryJinja2ChatFormatter
+from gremory.modules.llama_cpp_module import llama_cpp_lib
 from gremory.modules.samplers import (
     DRYLogitsProcessor,
     TailFreeLogitsWarper,
@@ -34,7 +38,7 @@ from gremory.modules.samplers import (
 from gremory.types import LogitProcessorListInputType
 
 
-class LlamaCPPWrapper(Llama):
+class LlamaCPPWrapper(llama_cpp_lib().Llama):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         template_choices = dict(
@@ -212,76 +216,65 @@ class LlamaCPPWrapper(Llama):
                     raise ValueError("Undefined sampler name detected!")
         return LogitsProcessorList(logits_processor_list)
 
-    def sample(
+    def _init_sampler(
         self,
         logits_processor: Optional[LogitsProcessorList] = None,
-        temp: float = None,
-        idx: Optional[int] = None,
         grammar: Optional[LlamaGrammar] = None,
-        top_k: int = None,
-        top_p: float = None,
-        min_p: float = None,
-        typical_p: float = None,
-        repeat_penalty: float = None,
-        frequency_penalty: float = None,
-        presence_penalty: float = None,
-        tfs_z: float = None,
-        mirostat_mode: int = None,
-        mirostat_eta: float = None,
-        mirostat_tau: float = None,
-        penalize_nl: bool = False,
+        **kwargs,
     ):
-        assert self._ctx is not None
-        assert self.n_tokens > 0
-
-        if idx is None:
-            logits: npt.NDArray[np.single] = self._scores[-1, :]
-        else:
-            logits = self._scores[idx, :]
+        sampler = LlamaSampler()
 
         if logits_processor is not None:
-            logits[:] = (
-                logits_processor(
-                    torch.from_numpy(self._input_ids).unsqueeze(dim=0),
-                    torch.from_numpy(logits).unsqueeze(dim=0),
-                )
-                if idx is None
-                else logits_processor(
-                    torch.from_numpy(self._input_ids[: idx + 1]).unsqueeze(dim=0),
-                    torch.from_numpy(logits).unsqueeze(dim=0),
-                )
-            )
-        # TODO: Check with transformers dimensions
-        probs = np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
-        output = np.random.choice(probs.shape[-1], size=1, p=probs.ravel())
-        return output[0]
+            # Create and add a custom sampler
+            def apply_func(token_data_array):
+                size = token_data_array.contents.size
+                data_soa = token_data_array.contents.data
+                data_soa_address = ctypes.addressof(data_soa.contents)
 
+                recarray = np.recarray(
+                    shape=(size,),
+                    dtype=np.dtype(
+                        [("id", np.intc), ("logit", np.single), ("p", np.single)],
+                        align=True,
+                    ),
+                    buf=(llama_token_data * size).from_address(data_soa_address),
+                )
 
-# sampling_params = _LlamaSamplingParams(
-#     top_k=top_k,
-#     top_p=top_p,
-#     min_p=min_p,
-#     tfs_z=tfs_z,
-#     typical_p=typical_p,
-#     temp=temp,
-#     penalty_last_n=self.last_n_tokens_size,
-#     penalty_repeat=repeat_penalty,
-#     penalty_freq=frequency_penalty,
-#     penalty_present=presence_penalty,
-#     mirostat=mirostat_mode,
-#     mirostat_tau=mirostat_tau,
-#     mirostat_eta=mirostat_eta,
-#     penalize_nl=penalize_nl,
-# )
-# sampling_context = _LlamaSamplingContext(
-#     params=sampling_params,
-#     grammar=grammar,
-# )
-# sampling_context.prev = list(self.eval_tokens)
-# id = sampling_context.sample(ctx_main=self._ctx, logits_array=logits)
-# sampling_context.accept(
-#     ctx_main=self._ctx,
-#     id=id,
-#     apply_grammar=grammar is not None,
-# )
-# return id
+                # Convert input_ids to PyTorch tensor
+                input_ids_tensor = torch.tensor(
+                    self._input_ids, dtype=torch.long
+                ).unsqueeze(0)
+
+                for logit_processor in logits_processor:
+                    # Convert logits to PyTorch tensor
+                    logits_tensor = torch.from_numpy(recarray.logit).unsqueeze(0)
+
+                    # Apply logit processor
+                    processed_logits = logit_processor(input_ids_tensor, logits_tensor)
+
+                    # Update recarray with processed logits
+                    recarray.logit[:] = processed_logits.squeeze(0).numpy()
+
+                return recarray
+
+            sampler.add_custom(apply_func)
+
+        # sampler.add_penalties(
+        #     n_vocab=self._n_vocab,
+        #     special_eos_id=self._token_eos,
+        #     linefeed_id=self._token_nl,
+        #     penalty_last_n=self.last_n_tokens_size,
+        #     penalty_repeat=repeat_penalty,
+        #     penalty_freq=frequency_penalty,
+        #     penalty_present=presence_penalty,
+        #     penalize_nl=penalize_nl,
+        #     ignore_eos=False,
+        # )
+
+        if grammar is not None:
+            sampler.add_grammar(self._model, grammar)
+
+        sampler.add_softmax()
+        sampler.add_dist(self._seed)
+        #    sampler.add_greedy()
+        return sampler

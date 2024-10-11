@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from transformers.generation.logits_process import LogitsProcessor, LogitsWarper
 
 
@@ -200,9 +201,9 @@ class UnifiedLogitsWarper(LogitsWarper):
         self, input_ids: torch.LongTensor, scores: torch.FloatTensor
     ) -> torch.FloatTensor:
         # calculate entropy
-        log_p = torch.nn.functional.log_softmax(scores, dim=-1)
+        log_p = F.log_softmax(scores, dim=-1)
         p = torch.exp(log_p)
         entropy = -(log_p * p).nansum(-1, keepdim=True)
-        # Warning: This is using log probabilities as scores
-        scores = log_p * (self.linear + entropy * self.conf) - log_p**2 * self.quad
-        return scores
+        out = log_p * (self.linear + entropy * self.conf) - log_p**2 * self.quad
+        # out = log_p_out.exp()
+        return out

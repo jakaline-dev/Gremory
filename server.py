@@ -3,6 +3,7 @@ from typing import Tuple, Type, Union
 
 import litserve as ls
 from fastapi.exceptions import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from flask_cloudflared import start_cloudflared
 from pydantic_settings import (
     BaseSettings,
@@ -105,8 +106,7 @@ class GremoryLitAPI(ls.LitAPI):
         if request.logit_bias and len(request.logit_bias.items()) > 0:
             logit_processor_list.append(LogitBiasWarper(value=request.logit_bias))
 
-        if len(logit_processor_list) > 0:
-            input.logits_processor_list_input = logit_processor_list
+        input.logits_processor_list_input = logit_processor_list
         return input
 
     def predict(
@@ -176,7 +176,22 @@ if __name__ == "__main__":
         except ImportError:
             pass
     api = GremoryLitAPI()
-    server = ls.LitServer(api, stream=True, api_path="/v1/chat/completions")
+    server = ls.LitServer(
+        api,
+        stream=True,
+        api_path="/v1/chat/completions",
+        middlewares=[
+            (
+                CORSMiddleware,
+                {
+                    "allow_origins": ["*"],
+                    "allow_credentials": True,
+                    "allow_methods": ["*"],
+                    "allow_headers": ["*"],
+                },
+            )
+        ],
+    )
     if settings.cloudflared:
         start_cloudflared(port=9052, metrics_port=8152)
     server.run(port=9052)
