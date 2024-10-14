@@ -111,6 +111,7 @@ class GremoryChatCompletionsRequest(GremoryBaseRequest):
     messages: List[ChatCompletionMessageParam]
     samplers: Optional[List[Sampler]] = None
     add_generation_prompt: bool = True
+    chat_template: Optional[str] = None
 
 
 class GremoryCompletionsRequest(GremoryBaseRequest):
@@ -141,3 +142,4 @@ class GremoryChatCompletionsInput(GremoryBaseInput):
     top_logprobs: Optional[int] = None
     add_generation_prompt: bool = True
     logits_processor_list_input: Optional[LogitProcessorListInputType] = None
+    chat_template: Optional[str] = None

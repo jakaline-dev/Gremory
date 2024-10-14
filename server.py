@@ -78,6 +78,7 @@ class GremoryLitAPI(ls.LitAPI):
                 stream=request.stream,
                 seed=request.seed,
                 model=request.model,
+                chat_template=request.chat_template,
             )
         elif isinstance(request, GremoryCompletionsRequest):
             input = GremoryCompletionsInput(

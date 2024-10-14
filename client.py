@@ -21,6 +21,7 @@ REQUEST_BODY = {
     ],
     # "prompt": "What is your favourite condiment? I"
     "samplers": [
+        {"type": "top_p", "value": 0.995}
         # {
         #     "type": "DRY",
         #     "multiplier": 0.85,
@@ -31,7 +32,7 @@ REQUEST_BODY = {
         # {"type": "XTC", "threshold": 0.1, "probability": 0.5},
         # {"type": "min_p", "value": 0.1},
         # {"type": "temperature", "value": 0.1},
-        {"type": "unified", "linear": 3, "conf": 0.0, "quad": 0.18}
+        # {"type": "unified", "linear": 0.3, "conf": 0.0, "quad": 0.18}
     ],
     "max_tokens": 200,
     "stream": STREAM,

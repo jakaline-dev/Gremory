@@ -3,10 +3,7 @@ from typing import Dict, Iterator, List, Optional, Union
 
 import numpy as np
 import torch
-from llama_cpp_cuda import (
-    LogitsProcessorList,
-    llama_token_data,
-)
+from llama_cpp_cuda import LogitsProcessorList, llama_chat_format, llama_token_data
 from llama_cpp_cuda._internals import LlamaSampler
 from llama_cpp_cuda.llama_grammar import LlamaGrammar
 from llama_cpp_cuda.llama_types import (
@@ -100,10 +97,32 @@ class LlamaCPPWrapper(llama_cpp_lib().Llama):
         logprobs: Optional[bool] = None,
         top_logprobs: Optional[int] = None,
         add_generation_prompt: bool = True,
+        chat_template: Optional[str] = None,
     ) -> Union[
         CreateChatCompletionResponse, Iterator[CreateChatCompletionStreamResponse]
     ]:
-        return self.chat_handler(
+        if chat_template:
+            eos_token_id = self.token_eos()
+            bos_token_id = self.token_bos()
+            eos_token = (
+                self._model.token_get_text(eos_token_id) if eos_token_id != -1 else ""
+            )
+            bos_token = (
+                self._model.token_get_text(bos_token_id) if bos_token_id != -1 else ""
+            )
+            handler = llama_chat_format.Jinja2ChatFormatter(
+                template=chat_template,
+                eos_token=eos_token,
+                bos_token=bos_token,
+                stop_token_ids=[eos_token_id],
+            ).to_chat_handler()
+        else:
+            handler = (
+                self.chat_handler
+                or self._chat_handlers.get(self.chat_format)
+                or llama_chat_format.get_chat_completion_handler(self.chat_format)
+            )
+        return handler(
             llama=self,
             messages=messages,
             functions=functions,
